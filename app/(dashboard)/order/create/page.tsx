@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Eye, Plus, ArrowLeft, Save, Send } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CustomerDetailsStep } from "@/components/quote-wizard/customer-details-step"
 import { SearchDetailsStep } from "@/components/quote-wizard/search-details-step"
 import { CompareStep } from "@/components/quote-wizard/compare-step"
 import { QuoteDetailsStep } from "@/components/quote-wizard/quote-details-step"
 import { EmailStep } from "@/components/quote-wizard/email-step"
-import { WestvaalQuote, DtoCustomerDetails, DtoEmail, DtoPart, QuoteStatus } from "@/types/quote"
+import { WestvaalQuote, DtoCustomerDetails, DtoEmail, DtoPart, QuoteStatus, TradeInDetails } from "@/types/quote"
 import { toast } from "@/hooks/use-toast"
 
 const steps = [
@@ -45,6 +46,9 @@ export default function CreateQuotePage() {
   })
 
   const [selectedVehicles, setSelectedVehicles] = useState<DtoPart[]>([])
+  const [tradeIn, setTradeIn] = useState<TradeInDetails | undefined>(undefined)
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState<string>("")
 
   const [emailTemplate, setEmailTemplate] = useState<DtoEmail>({
     subject: "Vehicle Quote - WestVaal Fleet Solutions",
@@ -88,6 +92,7 @@ export default function CreateQuotePage() {
         customerDetails,
         email: emailTemplate,
         parts: selectedVehicles,
+        tradeIn,
         status: QuoteStatus.DRAFT,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -130,6 +135,7 @@ export default function CreateQuotePage() {
         customerDetails,
         email: emailTemplate,
         parts: selectedVehicles,
+        tradeIn,
         status: QuoteStatus.SENT,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -175,6 +181,42 @@ export default function CreateQuotePage() {
     }
   }
 
+  const handlePreviewQuote = async () => {
+    try {
+      const quote: WestvaalQuote = {
+        customerDetails,
+        email: emailTemplate,
+        parts: selectedVehicles,
+        tradeIn,
+        status: QuoteStatus.DRAFT,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      const response = await fetch('/api/quotes/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(quote)
+      })
+
+      if (response.ok) {
+        const html = await response.text()
+        setPreviewHtml(html)
+        setPreviewDialogOpen(true)
+      } else {
+        throw new Error('Failed to generate preview')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate quote preview",
+        variant: "destructive",
+      })
+    }
+  }
+
   const renderStepContent = () => {
     switch (steps[currentStep].id) {
       case "customer":
@@ -210,6 +252,8 @@ export default function CreateQuotePage() {
             vehicles={selectedVehicles}
             onChange={setSelectedVehicles}
             customerDetails={customerDetails}
+            tradeIn={tradeIn}
+            onTradeInChange={setTradeIn}
             onNext={isStepValid(3) ? goToNextStep : undefined}
             onPrevious={goToPreviousStep}
           />
@@ -221,6 +265,7 @@ export default function CreateQuotePage() {
             onChange={setEmailTemplate}
             customerDetails={customerDetails}
             vehicles={selectedVehicles}
+            onPreview={handlePreviewQuote}
             onSave={handleSaveQuote}
             onSend={handleSendQuote}
             onPrevious={goToPreviousStep}
@@ -267,6 +312,21 @@ export default function CreateQuotePage() {
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-[80vw] w-[80vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Quote Preview</DialogTitle>
+          </DialogHeader>
+          <div className="h-full overflow-hidden rounded-md border border-border">
+            <iframe
+              title="Quote Preview"
+              srcDoc={previewHtml}
+              className="h-full w-full bg-white"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {mode === "create" && (
         <>

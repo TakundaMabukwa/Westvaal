@@ -20,11 +20,11 @@ import {
   Calendar,
   User
 } from 'lucide-react'
-import { WestvaalQuote, QuoteStatus } from '@/types/quote'
+import { WestvaalQuote, OrderStatus } from '@/types/quote'
 
 interface QuoteKanbanProps {
   quotes: (WestvaalQuote & { id: string; created_at?: string })[]
-  onStatusChange: (quoteId: string, newStatus: QuoteStatus) => void
+  onStatusChange: (quoteId: string, newStatus: OrderStatus) => void
   onViewQuote: (quoteId: string) => void
   onManageWorkflow: (quoteId: string) => void
 }
@@ -74,7 +74,7 @@ const QuoteCard = ({
   onManageWorkflow 
 }: {
   quote: WestvaalQuote & { id: string; created_at?: string }
-  onStatusChange: (newStatus: QuoteStatus) => void
+  onStatusChange: (newStatus: OrderStatus) => void
   onViewQuote: () => void
   onManageWorkflow: () => void
 }) => {
@@ -111,10 +111,10 @@ const QuoteCard = ({
     <Card className="mb-3 hover:shadow-md transition-shadow duration-200 compact-quote-card">
       <CardContent className="p-3">
         {/* Approve button for new quotes */}
-        {quote.status === QuoteStatus.NEW_ORDERS && (
+        {quote.status === OrderStatus.NEW_ORDERS && (
           <div className="mb-2">
             <Button 
-              onClick={() => onStatusChange(QuoteStatus.AWAITING_DELIVERY)}
+              onClick={() => onStatusChange(OrderStatus.AWAITING_DELIVERY)}
               className="w-full h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
               size="sm"
             >
@@ -164,7 +164,7 @@ const QuoteCard = ({
               {Object.entries(STATUS_CONFIG).map(([statusKey, statusConfig]) => (
                 <DropdownMenuItem 
                   key={statusKey}
-                  onClick={() => onStatusChange(statusKey as QuoteStatus)}
+                  onClick={() => onStatusChange(statusKey as OrderStatus)}
                 >
                   Move to {statusConfig.title}
                 </DropdownMenuItem>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { WestvaalQuote, QuoteStatus } from "@/types/quote"
+import { WestvaalQuote, OrderStatus } from "@/types/quote"
 import { CheckCircle, MoreVertical } from "lucide-react"
 import {
   DropdownMenu,
@@ -22,11 +22,11 @@ interface QuoteWithId extends WestvaalQuote {
 }
 
 const columns = [
-  { id: QuoteStatus.NEW_ORDERS, title: "New Orders", color: "bg-blue-500" },
-  { id: QuoteStatus.AWAITING_DELIVERY, title: "Awaiting Delivery", color: "bg-yellow-500" },
-  { id: QuoteStatus.PRE_DELIVERY_INSPECTION, title: "Pre-delivery Inspection", color: "bg-purple-500" },
-  { id: QuoteStatus.AWAITING_BANK, title: "Awaiting Bank", color: "bg-orange-500" },
-  { id: QuoteStatus.COMPLETED, title: "Completed", color: "bg-green-500" },
+  { id: OrderStatus.NEW_ORDERS, title: "New Orders", color: "bg-blue-500" },
+  { id: OrderStatus.AWAITING_DELIVERY, title: "Awaiting Delivery", color: "bg-yellow-500" },
+  { id: OrderStatus.PRE_DELIVERY_INSPECTION, title: "Pre-delivery Inspection", color: "bg-purple-500" },
+  { id: OrderStatus.AWAITING_BANK, title: "Awaiting Bank", color: "bg-orange-500" },
+  { id: OrderStatus.COMPLETED, title: "Completed", color: "bg-green-500" },
 ]
 
 function OrderCard({ 
@@ -34,7 +34,7 @@ function OrderCard({
   onStatusChange 
 }: { 
   quote: QuoteWithId
-  onStatusChange: (newStatus: QuoteStatus) => void
+  onStatusChange: (newStatus: OrderStatus) => void
 }) {
   const totalValue = quote.parts?.reduce((sum, part) => {
     const partTotal = part.price * part.quantity
@@ -63,9 +63,9 @@ function OrderCard({
     <Card className="bg-background border-border hover:shadow-md transition-all duration-200 hover:border-primary/50">
       <CardContent className="p-3 space-y-3">
         {/* Approve button for new quotes */}
-        {quote.status === QuoteStatus.NEW_ORDERS && (
+        {quote.status === OrderStatus.NEW_ORDERS && (
           <Button 
-            onClick={() => onStatusChange(QuoteStatus.AWAITING_DELIVERY)}
+            onClick={() => onStatusChange(OrderStatus.AWAITING_DELIVERY)}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
             size="sm"
           >
@@ -188,7 +188,7 @@ export function KanbanTab() {
     }
   }
 
-  const handleStatusChange = async (quoteId: string, newStatus: QuoteStatus) => {
+  const handleStatusChange = async (quoteId: string, newStatus: OrderStatus) => {
     try {
       const response = await fetch(`/api/quotes/${quoteId}/status`, {
         method: 'PUT',
@@ -218,11 +218,11 @@ export function KanbanTab() {
 
   const groupedQuotes = useMemo(() => {
     const groups: Record<string, QuoteWithId[]> = {
-      [QuoteStatus.NEW_ORDERS]: [],
-      [QuoteStatus.AWAITING_DELIVERY]: [],
-      [QuoteStatus.PRE_DELIVERY_INSPECTION]: [],
-      [QuoteStatus.AWAITING_BANK]: [],
-      [QuoteStatus.COMPLETED]: []
+      [OrderStatus.NEW_ORDERS]: [],
+      [OrderStatus.AWAITING_DELIVERY]: [],
+      [OrderStatus.PRE_DELIVERY_INSPECTION]: [],
+      [OrderStatus.AWAITING_BANK]: [],
+      [OrderStatus.COMPLETED]: []
     }
 
     // Track processed quote IDs to avoid duplicates

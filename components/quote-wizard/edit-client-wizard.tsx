@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Eye, Plus, ArrowLeft } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CustomerDetailsStep } from "@/components/quote-wizard/customer-details-step"
 import { SearchDetailsStep } from "@/components/quote-wizard/search-details-step"
 import { CompareStep } from "@/components/quote-wizard/compare-step"
@@ -31,6 +32,8 @@ interface EditClientWizardProps {
 export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: EditClientWizardProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [mode, setMode] = useState<"view" | "create">("create")
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState<string>("")
   const [quoteData, setQuoteData] = useState<Partial<WestvaalQuote>>(initialData || {
     customerDetails: {
       quoteTo: "",
@@ -43,6 +46,13 @@ export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: 
       to: "",
       subject: "",
       body: ""
+    },
+    tradeIn: {
+      tradeInPrice: 0,
+      settlement: 0,
+      deposit: 0,
+      cashback: 0,
+      depositTowardsPurchase: 0
     }
   })
 
@@ -81,6 +91,32 @@ export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: 
 
   const updateEmail = (email: DtoEmail) => {
     updateQuoteData({ email })
+  }
+
+  const updateTradeIn = (tradeIn: any) => {
+    updateQuoteData({ tradeIn })
+  }
+
+  const handlePreviewQuote = async () => {
+    try {
+      const response = await fetch('/api/quotes/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(quoteData)
+      })
+
+      if (response.ok) {
+        const html = await response.text()
+        setPreviewHtml(html)
+        setPreviewDialogOpen(true)
+      } else {
+        console.error('Failed to generate preview')
+      }
+    } catch (error) {
+      console.error('Failed to generate preview', error)
+    }
   }
 
   return (
@@ -192,6 +228,8 @@ export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: 
                 vehicles={quoteData.parts || []}
                 onChange={updateParts}
                 customerDetails={quoteData.customerDetails!}
+                tradeIn={quoteData.tradeIn}
+                onTradeInChange={updateTradeIn}
                 onNext={goToNextStep}
                 onPrevious={goToPreviousStep}
               />
@@ -202,6 +240,7 @@ export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: 
                 onChange={updateEmail}
                 customerDetails={quoteData.customerDetails!}
                 vehicles={quoteData.parts || []}
+                onPreview={handlePreviewQuote}
                 onSave={onSubmit || (() => {})}
                 onSend={onSubmit || (() => {})}
                 onPrevious={goToPreviousStep}
@@ -211,6 +250,21 @@ export function EditClientWizard({ clientId, initialData, onChange, onSubmit }: 
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-[80vw] w-[80vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Quote Preview</DialogTitle>
+          </DialogHeader>
+          <div className="h-full overflow-hidden rounded-md border border-border">
+            <iframe
+              title="Quote Preview"
+              srcDoc={previewHtml}
+              className="h-full w-full bg-white"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

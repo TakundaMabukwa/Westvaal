@@ -15,6 +15,7 @@ interface EmailStepProps {
   onChange: (template: DtoEmail) => void
   customerDetails: DtoCustomerDetails
   vehicles: DtoPart[]
+  onPreview?: () => void
   onSave: () => void
   onSend: () => void
   onPrevious?: () => void
@@ -26,6 +27,7 @@ export function EmailStep({
   onChange, 
   customerDetails, 
   vehicles, 
+  onPreview,
   onSave, 
   onSend, 
   onPrevious, 
@@ -269,7 +271,11 @@ We look forward to serving your fleet requirements.`
               {loading ? "Sending..." : "Send Quote"}
             </Button>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="gap-2 bg-transparent">
+              <Button
+                variant="outline"
+                className="gap-2 bg-transparent"
+                onClick={() => onPreview?.()}
+              >
                 <Eye className="h-4 w-4" />
                 Preview
               </Button>

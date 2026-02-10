@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { WestvaalQuote, QuoteJson } from '@/types/quote'
+import { WestvaalQuote, QuoteJson, QuoteStatus } from '@/types/quote'
 
 // GET all quotes
 export async function GET() {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     
     // Set default status if not provided
     if (!quote.status) {
-      quote.status = "Draft"
+      quote.status = QuoteStatus.DRAFT
     }
     
     const { data, error } = await supabase

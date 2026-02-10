@@ -37,7 +37,7 @@ import {
   Download,
   Settings
 } from "lucide-react"
-import { QuoteJson, WestvaalQuote, QuoteStatus } from "@/types/quote"
+import { QuoteJson, WestvaalQuote, QuoteStatus, OrderStatus } from "@/types/quote"
 import { QuoteWorkflow } from "@/components/quote-workflow/quote-workflow"
 import { QuoteKanban } from "@/components/quote-kanban/quote-kanban"
 import {
@@ -105,16 +105,24 @@ export default function QuotingPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case QuoteStatus.DRAFT:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{formatStatus(status)}</Badge>
       case QuoteStatus.CLIENT_APPROVED:
-        return <Badge variant="default">{status}</Badge>
+        return <Badge variant="default">{formatStatus(status)}</Badge>
       case QuoteStatus.AWAITING_BANK_REF:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{formatStatus(status)}</Badge>
       case QuoteStatus.AWAITING_INSPECTION:
-        return <Badge variant="destructive">{status}</Badge>
+        return <Badge variant="destructive">{formatStatus(status)}</Badge>
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{formatStatus(status)}</Badge>
     }
+  }
+
+  const formatStatus = (status?: string) => {
+    if (!status) return 'Draft'
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   const getStatusIcon = (status: string) => {
@@ -193,7 +201,7 @@ export default function QuotingPage() {
     return quote.parts.reduce((sum, part) => sum + (part.price * part.quantity), 0)
   }
 
-  const handleStatusChange = async (quoteId: string, newStatus: QuoteStatus) => {
+  const handleStatusChange = async (quoteId: string, newStatus: OrderStatus) => {
     try {
       const response = await fetch(`/api/quotes/${quoteId}/status`, {
         method: 'PUT',

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { WestvaalQuote, QuoteStatus } from '@/types/quote'
+import { WestvaalQuote, QuoteStatus, OrderStatus } from '@/types/quote'
 
 // PUT - Update quote status
 export async function PUT(
@@ -13,7 +13,7 @@ export async function PUT(
     const supabase = await createClient()
 
     // Validate status
-    if (status && !Object.values(QuoteStatus).includes(status)) {
+    if (status && !Object.values(QuoteStatus).includes(status) && !Object.values(OrderStatus).includes(status)) {
       return NextResponse.json({ error: 'Invalid status provided' }, { status: 400 })
     }
     

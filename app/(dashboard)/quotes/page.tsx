@@ -32,7 +32,7 @@ import {
   Clock,
   CheckCircle
 } from "lucide-react"
-import { WestvaalQuote } from "@/types/quote"
+import { WestvaalQuote, QuoteStatus } from "@/types/quote"
 import { QuoteWorkflow } from "@/components/quote-workflow/quote-workflow"
 import { toast } from "@/hooks/use-toast"
 
@@ -93,22 +93,37 @@ export default function QuotesPage() {
 
   const stats = {
     total: quotes.length,
-    pending: quotes.filter(q => !['Completed'].includes(q.status || '')).length,
-    completed: quotes.filter(q => q.status === 'Completed').length,
-    inProgress: quotes.filter(q => ['Pre Delivery Job Card', 'Apply For Finance', 'Waiting For Stock', 'License And Reg'].includes(q.status || '')).length
+    pending: quotes.filter(q => q.status !== QuoteStatus.COMPLETED).length,
+    completed: quotes.filter(q => q.status === QuoteStatus.COMPLETED).length,
+    inProgress: quotes.filter(q =>
+      [
+        QuoteStatus.PRE_DELIVERY_JOB_CARD,
+        QuoteStatus.APPLY_FOR_FINANCE,
+        QuoteStatus.WAITING_FOR_STOCK,
+        QuoteStatus.LICENSE_AND_REG
+      ].includes(q.status as QuoteStatus)
+    ).length
   }
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'Completed':
+      case QuoteStatus.COMPLETED:
         return 'default'
-      case 'Draft':
+      case QuoteStatus.DRAFT:
         return 'secondary'
-      case 'Sent':
+      case QuoteStatus.SENT:
         return 'outline'
       default:
         return 'secondary'
     }
+  }
+
+  const formatStatus = (status?: string) => {
+    if (!status) return 'Draft'
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   return (
@@ -217,8 +232,8 @@ export default function QuotesPage() {
                       <TableCell className="font-medium">#{quote.id}</TableCell>
                       <TableCell>{quote.customerDetails?.companyName || 'N/A'}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(quote.status || '')}>
-                          {quote.status || 'Draft'}
+                        <Badge variant={getStatusBadgeVariant(quote.status || QuoteStatus.DRAFT)}>
+                          {formatStatus(quote.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>

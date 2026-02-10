@@ -1,10 +1,76 @@
-// Quote Status for Kanban board
-export enum QuoteStatus {
+// Order status for Kanban board
+export enum OrderStatus {
   NEW_ORDERS = 'new_orders',
   AWAITING_DELIVERY = 'awaiting_delivery',
   PRE_DELIVERY_INSPECTION = 'pre_delivery_inspection',
   AWAITING_BANK = 'awaiting_bank',
   COMPLETED = 'completed'
+}
+
+// Trade-in details
+export interface TradeInDetails {
+  tradeInPrice: number;
+  settlement: number;
+  deposit: number;
+  cashback: number;
+  depositTowardsPurchase: number;
+  owner?: {
+    title?: string;
+    firstName?: string;
+    lastName?: string;
+    idNumber?: string;
+    contactNumber?: string;
+    email?: string;
+    companyName?: string;
+    unitDoorNo?: string;
+    complexName?: string;
+    streetHouseNo?: string;
+    streetName?: string;
+    suburb?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+  };
+  vehicle?: {
+    manualVehicle?: boolean;
+    appraisalNo?: string;
+    meadMcGrouther?: string;
+    category?: string;
+    make?: string;
+    model?: string;
+    variant?: string;
+    year?: string;
+    colour?: string;
+    regNo?: string;
+    mileage?: string;
+    chassisNo?: string;
+    engineNo?: string;
+    purchasedFrom?: string;
+    financeCompany?: string;
+    insuranceCompany?: string;
+    policyNo?: string;
+    settlementExpDate?: string;
+    nextInstallmentDate?: string;
+    comments?: string;
+    mmRetailValue?: number;
+    mmTradeValue?: number;
+    mmCode?: string;
+  };
+  offer?: {
+    offerByDealer?: number;
+    standInPriceEstimated?: number;
+    standInPrice?: number;
+    lessSettlement?: number;
+    balanceShortage?: number;
+    shortfallRecovery?: number;
+    customerContribution?: number;
+    addOnA?: number;
+    vatApplicable?: boolean;
+    surplusApplication?: number;
+    lessCashBack?: number;
+    lessDepositTowardsPurchase?: number;
+    nettBalance?: number;
+  };
 }
 
 // Main quote structure
@@ -13,8 +79,9 @@ export interface WestvaalQuote {
   parts: DtoPart[];
   customerDetails: DtoCustomerDetails;
   email: DtoEmail;
-  status: QuoteStatus;
+  status: QuoteStatus | OrderStatus;
   bankRef?: string;
+  tradeIn?: TradeInDetails;
   // Workflow stages for post-creation management
   workflowStages?: QuoteWorkflowStages;
 }
@@ -152,18 +219,18 @@ export interface FleetAssist {
   n?: string;
 }
 
-// Quote statuses
+// Quote lifecycle statuses
 export enum QuoteStatus {
-  DRAFT = "Draft",
-  SENT = "Sent",
-  CLIENT_APPROVED = "Client Approved", 
-  AWAITING_BANK_REF = "Awaiting Bank Ref",
-  AWAITING_INSPECTION = "Awaiting Inspection",
-  PRE_DELIVERY_JOB_CARD = "Pre Delivery Job Card",
-  APPLY_FOR_FINANCE = "Apply For Finance", 
-  WAITING_FOR_STOCK = "Waiting For Stock",
-  LICENSE_AND_REG = "License And Reg",
-  COMPLETED = "Completed"
+  DRAFT = "draft",
+  SENT = "sent",
+  CLIENT_APPROVED = "client_approved",
+  AWAITING_BANK_REF = "awaiting_bank_ref",
+  AWAITING_INSPECTION = "awaiting_inspection",
+  PRE_DELIVERY_JOB_CARD = "pre_delivery_job_card",
+  APPLY_FOR_FINANCE = "apply_for_finance",
+  WAITING_FOR_STOCK = "waiting_for_stock",
+  LICENSE_AND_REG = "license_and_reg",
+  COMPLETED = "completed"
 }
 
 // Workflow stages for post-creation quote management

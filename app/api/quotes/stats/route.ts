@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { WestvaalQuote } from '@/types/quote'
+import { WestvaalQuote, OrderStatus } from '@/types/quote'
 
 export async function GET() {
   try {
@@ -53,7 +53,7 @@ export async function GET() {
 
     // Outstanding Orders - approved but not completed
     const outstandingOrders = approvedQuotes.filter(q => 
-      q.status !== 'completed'
+      q.status !== OrderStatus.COMPLETED
     ).length
 
     // Outstanding Orders Last Month
@@ -62,12 +62,12 @@ export async function GET() {
       if (!approvedAt) return false
       const date = new Date(approvedAt)
       const isLastMonth = date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear
-      return isLastMonth && q.status !== 'completed'
+      return isLastMonth && q.status !== OrderStatus.COMPLETED
     }).length
 
     // Completed Orders - all workflow stages completed
     const completedOrders = approvedQuotes.filter(q => 
-      q.status === 'completed'
+      q.status === OrderStatus.COMPLETED
     ).length
 
     // Completed Orders Last Month
@@ -98,7 +98,7 @@ export async function GET() {
     }
 
     const totalProfit = approvedQuotes
-      .filter(q => q.status === 'completed')
+      .filter(q => q.status === OrderStatus.COMPLETED)
       .reduce((sum, quote) => sum + calculateQuoteTotal(quote), 0)
 
     // Calculate total revenue (all approved quotes regardless of completion)
@@ -126,11 +126,11 @@ export async function GET() {
 
     // Group quotes by status for the chart
     const statusCounts = {
-      new_orders: approvedQuotes.filter(q => q.status === 'new_orders').length,
-      awaiting_delivery: approvedQuotes.filter(q => q.status === 'awaiting_delivery').length,
-      pre_delivery_inspection: approvedQuotes.filter(q => q.status === 'pre_delivery_inspection').length,
-      awaiting_bank: approvedQuotes.filter(q => q.status === 'awaiting_bank').length,
-      completed: approvedQuotes.filter(q => q.status === 'completed').length,
+      new_orders: approvedQuotes.filter(q => q.status === OrderStatus.NEW_ORDERS).length,
+      awaiting_delivery: approvedQuotes.filter(q => q.status === OrderStatus.AWAITING_DELIVERY).length,
+      pre_delivery_inspection: approvedQuotes.filter(q => q.status === OrderStatus.PRE_DELIVERY_INSPECTION).length,
+      awaiting_bank: approvedQuotes.filter(q => q.status === OrderStatus.AWAITING_BANK).length,
+      completed: approvedQuotes.filter(q => q.status === OrderStatus.COMPLETED).length,
     }
 
     // Total Profit Last Month
@@ -141,7 +141,7 @@ export async function GET() {
         const date = new Date(completedAt)
         return date.getMonth() === lastMonth && 
                date.getFullYear() === lastMonthYear && 
-               q.status === 'completed'
+               q.status === OrderStatus.COMPLETED
       })
       .reduce((sum, quote) => sum + calculateQuoteTotal(quote), 0)
 
@@ -189,7 +189,7 @@ export async function GET() {
         trend: Number(outstandingChange) >= 0 ? 'up' : 'down',
         revenue: formatCurrency(
           approvedQuotes
-            .filter(q => q.status !== 'completed')
+            .filter(q => q.status !== OrderStatus.COMPLETED)
             .reduce((sum, quote) => sum + calculateQuoteTotal(quote), 0)
         )
       },
@@ -210,11 +210,11 @@ export async function GET() {
         trend: Number(revenueChange) >= 0 ? 'up' : 'down'
       },
       statusBreakdown: [
-        { name: 'New Orders', value: statusCounts.new_orders, status: 'new_orders' },
-        { name: 'Awaiting Delivery', value: statusCounts.awaiting_delivery, status: 'awaiting_delivery' },
-        { name: 'Pre-Delivery Inspection', value: statusCounts.pre_delivery_inspection, status: 'pre_delivery_inspection' },
-        { name: 'Awaiting Bank', value: statusCounts.awaiting_bank, status: 'awaiting_bank' },
-        { name: 'Completed', value: statusCounts.completed, status: 'completed' }
+        { name: 'New Orders', value: statusCounts.new_orders, status: OrderStatus.NEW_ORDERS },
+        { name: 'Awaiting Delivery', value: statusCounts.awaiting_delivery, status: OrderStatus.AWAITING_DELIVERY },
+        { name: 'Pre-Delivery Inspection', value: statusCounts.pre_delivery_inspection, status: OrderStatus.PRE_DELIVERY_INSPECTION },
+        { name: 'Awaiting Bank', value: statusCounts.awaiting_bank, status: OrderStatus.AWAITING_BANK },
+        { name: 'Completed', value: statusCounts.completed, status: OrderStatus.COMPLETED }
       ]
     })
 

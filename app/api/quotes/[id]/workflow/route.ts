@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { QuoteWorkflowStages } from '@/types/quote'
+import { QuoteWorkflowStages, OrderStatus } from '@/types/quote'
 
 export async function PATCH(
   request: NextRequest,
@@ -42,15 +42,15 @@ export async function PATCH(
 
     // Update quote status based on workflow progress
     if (stage === 'approveQuote' && data.completed) {
-      quoteData.status = 'awaiting_delivery' // Move to awaiting delivery after approval
+      quoteData.status = OrderStatus.AWAITING_DELIVERY // Move to awaiting delivery after approval
     } else if (stage === 'preDeliveryJobCard' && data.completed) {
-      quoteData.status = 'pre_delivery_inspection' // Pre-Delivery Inspection
+      quoteData.status = OrderStatus.PRE_DELIVERY_INSPECTION // Pre-Delivery Inspection
     } else if (stage === 'applyForFinance' && data.completed) {
-      quoteData.status = 'awaiting_bank' // Awaiting Bank
+      quoteData.status = OrderStatus.AWAITING_BANK // Awaiting Bank
     } else if (stage === 'waitingForStock' && data.completed) {
-      quoteData.status = 'awaiting_delivery' // Keep in awaiting delivery
+      quoteData.status = OrderStatus.AWAITING_DELIVERY // Keep in awaiting delivery
     } else if (stage === 'licenseAndReg' && data.completed) {
-      quoteData.status = 'pre_delivery_inspection' // Keep in pre-delivery inspection
+      quoteData.status = OrderStatus.PRE_DELIVERY_INSPECTION // Keep in pre-delivery inspection
     }
 
     // Check if all required stages are completed (waitingForStock is optional and can be skipped)
@@ -60,7 +60,7 @@ export async function PATCH(
                               quoteData.workflowStages.licenseAndReg?.completed
 
     if (allStagesCompleted) {
-      quoteData.status = 'completed'
+      quoteData.status = OrderStatus.COMPLETED
     }
 
     // Update in database
