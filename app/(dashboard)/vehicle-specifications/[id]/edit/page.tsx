@@ -1,188 +1,181 @@
 "use client"
 
-import { useState, use } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ArrowLeft } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Loader2 } from "lucide-react"
+import VehicleSpecForm, {
+  defaultVehicleSpecFormData,
+  VehicleSpecFormData,
+} from "@/components/vehicle-specs/spec-form"
+import { toast } from "@/hooks/use-toast"
 
 export default function EditVehicleSpecPage({ params }: { params: Promise<{ id: string }> }) {
-  // Unwrap the async params passed by Next.js in a client component
-  const { id } = use(params as Promise<{ id: string }>)
-  const [step, setStep] = useState(0)
-
-  const goNext = () => setStep((s) => Math.min(s + 1, 3))
-  const goBack = () => setStep((s) => Math.max(s - 1, 0))
-
+  const { id } = use(params)
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState<VehicleSpecFormData>(defaultVehicleSpecFormData)
+
+  useEffect(() => {
+    fetchSpec()
+  }, [id])
+
+  const fetchSpec = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/vehicle-specs/${id}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch specification")
+      }
+
+      const data = await response.json()
+      const specifications = Array.isArray(data.specifications) ? data.specifications[0] : data.specifications
+      const finance = Array.isArray(data.finance) ? data.finance[0] : data.finance
+      const warranty = Array.isArray(data.warranty) ? data.warranty[0] : data.warranty
+      const additionalFeatures = Array.isArray(data.additional_features) ? data.additional_features[0] : data.additional_features
+
+      setFormData({
+        basic: {
+          mm_code: data.mm_code || "",
+          make: data.make || "",
+          model: data.model || "",
+          type: data.type || "",
+        },
+        specifications: {
+          cubic_capacity: specifications?.cubic_capacity || 0,
+          kilowatt: specifications?.kilowatt || 0,
+          newton_meter: specifications?.newton_meter || 0,
+          co2_emissions: specifications?.co2_emissions || 0,
+          fuel_type_id: specifications?.fuel_type_id || 0,
+          fuel_consumption: specifications?.fuel_consumption || 0,
+          period: specifications?.period || 0,
+          kms_per_month: specifications?.kms_per_month || 0,
+          total_kms: specifications?.total_kms || 0,
+          retail: specifications?.retail || 0,
+          fuel_type: specifications?.fuel_type || "",
+        },
+        finance: {
+          finance_per_month: finance?.finance_per_month || 0,
+          rv: finance?.rv || 0,
+          rv_percentage: finance?.rv_percentage || 0,
+          total_finance: finance?.total_finance || 0,
+          resale: finance?.resale || 0,
+          maintenance: finance?.maintenance || 0,
+          tyres: finance?.tyres || 0,
+          fuel: finance?.fuel || 0,
+          insurance: finance?.insurance || 0,
+          operating_cost_per_month: finance?.operating_cost_per_month || 0,
+          operating_cost_per_kilometre: finance?.operating_cost_per_kilometre || 0,
+          total_cost_per_month: finance?.total_cost_per_month || 0,
+          total_cost_per_kilometre: finance?.total_cost_per_kilometre || 0,
+          total_cost_overall: finance?.total_cost_overall || 0,
+        },
+        warranty: {
+          warranty_months: warranty?.warranty_months || 0,
+          warranty_kilometers: warranty?.warranty_kilometers || 0,
+          plan_type_id: warranty?.plan_type_id || 0,
+          plan_months: warranty?.plan_months || 0,
+          plan_kilometers: warranty?.plan_kilometers || 0,
+          plan_type: warranty?.plan_type || "",
+        },
+        additionalFeatures: {
+          has_abs: additionalFeatures?.has_abs || false,
+          has_airbags: additionalFeatures?.has_airbags || false,
+          has_aircon: additionalFeatures?.has_aircon || false,
+          has_alloy_wheels: additionalFeatures?.has_alloy_wheels || false,
+          has_cruise_control: additionalFeatures?.has_cruise_control || false,
+          has_diff_lock: additionalFeatures?.has_diff_lock || false,
+          has_electric_windows: additionalFeatures?.has_electric_windows || false,
+          has_low_ratio: additionalFeatures?.has_low_ratio || false,
+          has_pdc: additionalFeatures?.has_pdc || false,
+          has_power_steering: additionalFeatures?.has_power_steering || false,
+          has_sat_nav: additionalFeatures?.has_sat_nav || false,
+          has_security: additionalFeatures?.has_security || false,
+          has_traction: additionalFeatures?.has_traction || false,
+        },
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load specification",
+        variant: "destructive",
+      })
+      router.push("/vehicle-specifications")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdate = async (payload: VehicleSpecFormData) => {
+    try {
+      setSaving(true)
+      const response = await fetch(`/api/vehicle-specs/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error?.error || "Failed to update specification")
+      }
+
+      toast({
+        title: "Success",
+        description: "Vehicle specification updated",
+      })
+      router.push("/vehicle-specifications")
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update specification",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-8 w-8">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold">Edit Vehicle Specification</h1>
-            <p className="text-sm text-muted-foreground">M&amp;M ID: {id}</p>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-8 w-8">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-semibold">Edit Vehicle Specification</h1>
+          <p className="text-sm text-muted-foreground">M&M Code: {id}</p>
         </div>
       </div>
 
-      <Tabs value="details">
-        <TabsList className="bg-muted/50 rounded-md">
-          <TabsTrigger value="details" className="gap-2">
-            Details
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="details">
-          <Card className="bg-card border-border shadow rounded-lg">
-            <CardContent className="p-5">
-          <div className="mb-3">
-              <div className="flex items-center gap-4 flex-wrap">
-                {["Basic Information", "Specifications", "Financials", "Warranty"].map((label, idx) => (
-                  <div key={label} className="flex items-center gap-3">
-                    <div
-                      className={`h-7 w-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                        idx <= step ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {idx + 1}
-                    </div>
-                    <div className={`text-sm ${idx <= step ? "text-foreground font-medium" : "text-muted-foreground"}`}>{label}</div>
-                  </div>
-                ))}
-              </div>
-          </div>
-
-          <div className="min-h-[180px]">
-            <div key={step} className="transition-opacity duration-250 ease-in-out">
-              {step === 0 && (
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Basic Information</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Make *</label>
-                      <Input value="Ford" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Model *</label>
-                      <Input value="Ranger 2.0 SiT Double Cab Base 4X2" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Type *</label>
-                      <Input value="Pickup Double CAB" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">M&amp;M Code</label>
-                      <Input value="220-35-150" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 1 && (
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Specifications</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">cc *</label>
-                      <Input value="2000" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">kW *</label>
-                      <Input value="125" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Nm *</label>
-                      <Input value="405" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">CO2 *</label>
-                      <Input value="181" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Fuel Type *</label>
-                      <Input value="Diesel" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">L/100 *</label>
-                      <Input value="6.9" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Period *</label>
-                      <Input value="60" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Kms PM *</label>
-                      <Input value="2500" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Financials</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Fin PM *</label>
-                      <Input value="11295" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">RV *</label>
-                      <Input value="0" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">RV % *</label>
-                      <Input value="0.00 %" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Total Fin *</label>
-                      <Input value="677749" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Warranty</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">War Mths *</label>
-                      <Input value="48" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">War Kms *</label>
-                      <Input value="120000" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Plan Type *</label>
-                      <Input value="None" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground">Plan Mths *</label>
-                      <Input value="0" readOnly className="mt-2 bg-muted/10 h-9 rounded-md text-sm px-3" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <Button variant="outline" onClick={goBack} disabled={step === 0}>Back</Button>
-            <Button onClick={goNext}>{step === 3 ? "Save" : "Next"}</Button>
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Specification Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <VehicleSpecForm
+            initialData={formData}
+            disableMmCode
+            submitLabel="Save Changes"
+            loading={saving}
+            onSubmit={handleUpdate}
+            onCancel={() => router.push("/vehicle-specifications")}
+          />
         </CardContent>
       </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

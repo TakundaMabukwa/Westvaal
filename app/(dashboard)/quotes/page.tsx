@@ -19,7 +19,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { 
@@ -27,13 +26,11 @@ import {
   Plus, 
   Search, 
   Eye,
-  Users,
   TrendingUp,
   Clock,
   CheckCircle
 } from "lucide-react"
 import { WestvaalQuote, QuoteStatus } from "@/types/quote"
-import { QuoteWorkflow } from "@/components/quote-workflow/quote-workflow"
 import { toast } from "@/hooks/use-toast"
 
 export default function QuotesPage() {
@@ -79,9 +76,35 @@ export default function QuotesPage() {
     }
   }
 
-  const handleQuoteUpdate = (updatedQuote: WestvaalQuote) => {
-    setQuotes(quotes.map(q => q.id === updatedQuote.id ? updatedQuote : q))
-    setSelectedQuote(updatedQuote)
+  const handleApproveQuote = async () => {
+    if (!selectedQuote?.id) return
+
+    try {
+      const response = await fetch(`/api/quotes/${selectedQuote.id}/approve`, {
+        method: "PUT",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to approve quote")
+      }
+
+      const updated = await response.json()
+      const updatedQuote = { ...selectedQuote, ...JSON.parse(updated.json) }
+
+      setQuotes(quotes.map(q => q.id === selectedQuote.id ? updatedQuote : q))
+      setSelectedQuote(updatedQuote)
+
+      toast({
+        title: "Success",
+        description: "Quote approved successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve quote",
+        variant: "destructive",
+      })
+    }
   }
 
   // Filter quotes based on search term
@@ -265,19 +288,32 @@ export default function QuotesPage() {
 
       {/* Workflow Management Dialog */}
       <Dialog open={workflowDialogOpen} onOpenChange={setWorkflowDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Quote Workflow Management</DialogTitle>
+            <DialogTitle>Manage Quote</DialogTitle>
             <DialogDescription>
               {selectedQuote && `Quote #${selectedQuote.id} - ${selectedQuote.customerDetails?.companyName}`}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedQuote && (
-            <QuoteWorkflow 
-              quote={selectedQuote} 
-              onUpdate={handleQuoteUpdate}
-            />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Current Status</span>
+                <Badge variant={getStatusBadgeVariant(selectedQuote.status || QuoteStatus.DRAFT)}>
+                  {formatStatus(selectedQuote.status)}
+                </Badge>
+              </div>
+
+              <Button
+                onClick={handleApproveQuote}
+                disabled={selectedQuote.status === QuoteStatus.CLIENT_APPROVED}
+                className="w-full"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                {selectedQuote.status === QuoteStatus.CLIENT_APPROVED ? "Already Approved" : "Approve Quote"}
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>

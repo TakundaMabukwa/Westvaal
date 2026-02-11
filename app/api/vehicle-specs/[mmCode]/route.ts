@@ -1,63 +1,57 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function GET() {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ mmCode: string }> }
+) {
   try {
+    const { mmCode } = await params
     const supabase = await createClient()
 
-    // Fetch all basic vehicle information with specifications for retail price
-    const { data: vehicles, error } = await supabase
+    const { data, error } = await supabase
       .schema('westvaal')
       .from('basic_vehicle_information')
       .select(`
         *,
-        specifications:specifications(
-          retail
-        )
+        specifications(*),
+        finance(*),
+        warranty(*),
+        additional_features(*)
       `)
-      .order('make', { ascending: true })
-      .order('model', { ascending: true })
+      .eq('mm_code', mmCode)
+      .single()
 
     if (error) {
-      console.error('Error fetching vehicles:', error)
-      return NextResponse.json({ error: 'Failed to fetch vehicles' }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Transform data to include retail price at root level
-    const transformedVehicles = (vehicles || []).map(vehicle => ({
-      ...vehicle,
-      retail: vehicle.specifications?.retail || 0
-    }))
-
-    return NextResponse.json(transformedVehicles)
-
+    return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in vehicle specs API:', error)
+    console.error('Error fetching vehicle spec:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ mmCode: string }> }
+) {
   try {
+    const { mmCode } = await params
     const supabase = await createClient()
     const body = await request.json()
     const { basic, specifications, finance, warranty, additionalFeatures } = body || {}
 
-    if (!basic?.mm_code || !basic?.make || !basic?.model || !basic?.type) {
-      return NextResponse.json({ error: 'Missing required basic vehicle information' }, { status: 400 })
-    }
-
-    const mmCode = basic.mm_code
-
     const { error: basicError } = await supabase
       .schema('westvaal')
       .from('basic_vehicle_information')
-      .insert({
-        mm_code: mmCode,
-        make: basic.make,
-        model: basic.model,
-        type: basic.type,
+      .update({
+        make: basic?.make,
+        model: basic?.model,
+        type: basic?.type,
       })
+      .eq('mm_code', mmCode)
 
     if (basicError) {
       return NextResponse.json({ error: basicError.message }, { status: 500 })
@@ -66,8 +60,7 @@ export async function POST(request: Request) {
     const { error: specError } = await supabase
       .schema('westvaal')
       .from('specifications')
-      .insert({
-        mm_code: mmCode,
+      .update({
         cubic_capacity: specifications?.cubic_capacity ?? 0,
         kilowatt: specifications?.kilowatt ?? 0,
         newton_meter: specifications?.newton_meter ?? 0,
@@ -80,6 +73,7 @@ export async function POST(request: Request) {
         retail: specifications?.retail ?? 0,
         fuel_type: specifications?.fuel_type ?? '',
       })
+      .eq('mm_code', mmCode)
 
     if (specError) {
       return NextResponse.json({ error: specError.message }, { status: 500 })
@@ -88,8 +82,7 @@ export async function POST(request: Request) {
     const { error: financeError } = await supabase
       .schema('westvaal')
       .from('finance')
-      .insert({
-        mm_code: mmCode,
+      .update({
         finance_per_month: finance?.finance_per_month ?? 0,
         rv: finance?.rv ?? 0,
         rv_percentage: finance?.rv_percentage ?? 0,
@@ -105,6 +98,7 @@ export async function POST(request: Request) {
         total_cost_per_kilometre: finance?.total_cost_per_kilometre ?? 0,
         total_cost_overall: finance?.total_cost_overall ?? 0,
       })
+      .eq('mm_code', mmCode)
 
     if (financeError) {
       return NextResponse.json({ error: financeError.message }, { status: 500 })
@@ -113,8 +107,7 @@ export async function POST(request: Request) {
     const { error: warrantyError } = await supabase
       .schema('westvaal')
       .from('warranty')
-      .insert({
-        mm_code: mmCode,
+      .update({
         warranty_months: warranty?.warranty_months ?? 0,
         warranty_kilometers: warranty?.warranty_kilometers ?? 0,
         plan_type_id: warranty?.plan_type_id ?? 0,
@@ -122,6 +115,7 @@ export async function POST(request: Request) {
         plan_kilometers: warranty?.plan_kilometers ?? 0,
         plan_type: warranty?.plan_type ?? '',
       })
+      .eq('mm_code', mmCode)
 
     if (warrantyError) {
       return NextResponse.json({ error: warrantyError.message }, { status: 500 })
@@ -130,8 +124,7 @@ export async function POST(request: Request) {
     const { error: featuresError } = await supabase
       .schema('westvaal')
       .from('additional_features')
-      .insert({
-        mm_code: mmCode,
+      .update({
         has_abs: additionalFeatures?.has_abs ?? false,
         has_airbags: additionalFeatures?.has_airbags ?? false,
         has_aircon: additionalFeatures?.has_aircon ?? false,
@@ -146,6 +139,7 @@ export async function POST(request: Request) {
         has_security: additionalFeatures?.has_security ?? false,
         has_traction: additionalFeatures?.has_traction ?? false,
       })
+      .eq('mm_code', mmCode)
 
     if (featuresError) {
       return NextResponse.json({ error: featuresError.message }, { status: 500 })
@@ -153,7 +147,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error creating vehicle spec:', error)
+    console.error('Error updating vehicle spec:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

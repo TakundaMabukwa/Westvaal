@@ -13,8 +13,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import {
   Tooltip,
   TooltipContent,
@@ -26,7 +24,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   FileText,
   Pencil,
-  Shield,
   Plus,
   Search,
   Users,
@@ -34,7 +31,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Download,
   Settings
 } from "lucide-react"
 import { QuoteJson, WestvaalQuote, QuoteStatus, OrderStatus } from "@/types/quote"
@@ -56,8 +52,9 @@ export default function QuotingPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedQuote, setSelectedQuote] = useState<WestvaalQuote | null>(null)
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false)
-  const [previewQuote, setPreviewQuote] = useState<WestvaalQuote | null>(null)
+  const [previewMeta, setPreviewMeta] = useState<WestvaalQuote | null>(null)
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState<string>("")
 
   // Fetch quotes on component mount
   useEffect(() => {
@@ -146,6 +143,12 @@ export default function QuotingPage() {
         method: 'PUT',
       })
       if (response.ok) {
+        if (selectedQuote?.id === id) {
+          setSelectedQuote({
+            ...selectedQuote,
+            status: QuoteStatus.CLIENT_APPROVED,
+          })
+        }
         toast({
           title: "Success",
           description: "Quote approved successfully",
@@ -164,11 +167,37 @@ export default function QuotingPage() {
   }
 
   const handlePreviewQuote = async (quote: WestvaalQuote) => {
-    setPreviewQuote(quote)
-    setPreviewDialogOpen(true)
+    try {
+      const response = await fetch('/api/quotes/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(quote)
+      })
+
+      if (response.ok) {
+        const html = await response.text()
+        setPreviewMeta(quote)
+        setPreviewHtml(html)
+        setPreviewDialogOpen(true)
+      } else {
+        throw new Error('Failed to generate preview')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate quote preview",
+        variant: "destructive",
+      })
+    }
   }
+  const openManageDialog = (quote: WestvaalQuote) => {
+    setSelectedQuote(quote)
+    setWorkflowDialogOpen(true)
+  }
+
   const handleQuoteUpdate = (updatedQuote: WestvaalQuote) => {
-    // Update the quote in the quotes list
     setQuotes(quotes.map(q => {
       if (q.id === updatedQuote.id) {
         return {
@@ -198,7 +227,11 @@ export default function QuotingPage() {
   })
 
   const calculateQuoteTotal = (quote: WestvaalQuote): number => {
-    return quote.parts.reduce((sum, part) => sum + (part.price * part.quantity), 0)
+    return quote.parts.reduce((sum, part) => {
+      const partTotal = (part.price || 0) * (part.quantity || 1)
+      const accessoryTotal = (part.accessories || []).reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0)
+      return sum + partTotal + accessoryTotal
+    }, 0)
   }
 
   const handleStatusChange = async (quoteId: string, newStatus: OrderStatus) => {
@@ -275,8 +308,7 @@ export default function QuotingPage() {
             onManageWorkflow={(quoteId) => {
               const quote = filteredQuotes.find(q => String(q.id) === String(quoteId))
               if (quote) {
-                setSelectedQuote(quote)
-                setWorkflowDialogOpen(true)
+                openManageDialog(quote)
               }
             }}
           />
@@ -353,36 +385,18 @@ export default function QuotingPage() {
                                   <TooltipContent>Preview Quote</TooltipContent>
                                 </Tooltip>
 
-                                {quote.status === QuoteStatus.DRAFT && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleApproveQuote(quote.id)}
-                                      >
-                                        <CheckCircle className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Approve Quote</TooltipContent>
-                                  </Tooltip>
-                                )}
-
-                                {/* <Tooltip>
+                                <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => {
-                                        setSelectedQuote(quote)
-                                        setWorkflowDialogOpen(true)
-                                      }}
+                                      onClick={() => openManageDialog(quote)}
                                     >
                                       <Settings className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Manage Workflow</TooltipContent>
-                                </Tooltip> */}
+                                </Tooltip>
 
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -449,263 +463,25 @@ export default function QuotingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Quote Preview Dialog */}
+            {/* Quote Preview Dialog */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-[70vw] w-[70vw] max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
-          <DialogHeader className="flex-shrink-0 border-b pb-4 bg-gradient-to-r from-primary/5 to-primary/10 -mx-6 -mt-6 px-6 pt-6 rounded-t-lg">
-            <DialogTitle className="text-2xl font-bold text-foreground">Quote Preview</DialogTitle>
-            <DialogDescription className="text-base mt-1">
-              {previewQuote && `Quote #${previewQuote.id} - ${previewQuote.customerDetails?.companyName}`}
+        <DialogContent className="max-w-[80vw] w-[80vw] h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Quote Preview</DialogTitle>
+            <DialogDescription>
+              {previewMeta && `Quote #${previewMeta.id} - ${previewMeta.customerDetails?.companyName}`}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto px-2 space-y-6 py-6">
-            {previewQuote && (
-              <>
-                {/* Customer Information */}
-                <Card className="shadow-md border-2 hover:shadow-lg transition-shadow">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <div className="p-2 bg-blue-500 text-white rounded-lg">
-                        <Users className="h-5 w-5" />
-                      </div>
-                      Customer Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Company Name</Label>
-                        <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.companyName}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Person</Label>
-                        <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.quoteTo}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Email Address</Label>
-                        <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.emailAddress}</p>
-                      </div>
-                      {previewQuote.customerDetails.contactNumber && (
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Number</Label>
-                          <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.contactNumber}</p>
-                        </div>
-                      )}
-                      {previewQuote.customerDetails.registrationNumber && (
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Registration Number</Label>
-                          <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.registrationNumber}</p>
-                        </div>
-                      )}
-                      {previewQuote.customerDetails.vatNumber && (
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">VAT Number</Label>
-                          <p className="text-base font-medium bg-muted/50 p-3 rounded-md">{previewQuote.customerDetails.vatNumber}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Quote Details */}
-                <Card className="shadow-md border-2 hover:shadow-lg transition-shadow">
-                  <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-950/20 dark:to-purple-900/10">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <div className="p-2 bg-purple-500 text-white rounded-lg">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      Quote Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Quote ID</Label>
-                        <p className="text-base font-medium bg-muted/50 p-3 rounded-md">#{previewQuote.id}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Status</Label>
-                        <div className="bg-muted/50 p-3 rounded-md">{getStatusBadge(previewQuote.status)}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Created Date</Label>
-                        <p className="text-base font-medium bg-muted/50 p-3 rounded-md">
-                          {previewQuote.created_at 
-                            ? new Date(previewQuote.created_at).toLocaleDateString('en-ZA', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })
-                            : 'N/A'
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Vehicles/Items */}
-                <Card className="shadow-md border-2 hover:shadow-lg transition-shadow">
-                  <CardHeader className="bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <div className="p-2 bg-green-500 text-white rounded-lg">
-                        <Shield className="h-5 w-5" />
-                      </div>
-                      Vehicles & Pricing
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      {previewQuote.parts.map((part, index) => (
-                        <div key={index} className="border-2 rounded-xl p-5 space-y-4 bg-gradient-to-br from-background to-muted/20 hover:shadow-md transition-all">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-2">
-                              <h4 className="font-bold text-lg text-foreground">{part.product.name}</h4>
-                              {part.product.mmCode && (
-                                <p className="text-sm text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block">
-                                  MM Code: {part.product.mmCode}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant="secondary" className="text-sm px-3 py-1">
-                              Qty: {part.quantity}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div className="space-y-2 bg-background p-3 rounded-lg border">
-                              <Label className="text-xs font-bold text-muted-foreground uppercase">Retail Price</Label>
-                              <p className="font-semibold text-base">R {part.masterPrice.toLocaleString()}</p>
-                            </div>
-                            <div className="space-y-2 bg-background p-3 rounded-lg border">
-                              <Label className="text-xs font-bold text-muted-foreground uppercase">Discount</Label>
-                              <p className="font-semibold text-base">{part.masterDiscount}%</p>
-                            </div>
-                            <div className="space-y-2 bg-background p-3 rounded-lg border">
-                              <Label className="text-xs font-bold text-muted-foreground uppercase">Unit Price</Label>
-                              <p className="font-semibold text-base">R {part.price.toLocaleString()}</p>
-                            </div>
-                            <div className="space-y-2 bg-primary/10 p-3 rounded-lg border-2 border-primary/30">
-                              <Label className="text-xs font-bold text-primary uppercase">Subtotal</Label>
-                              <p className="font-bold text-base text-primary">
-                                R {(part.price * part.quantity).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          {part.accessories && part.accessories.length > 0 && (
-                            <div className="mt-4 pt-4 border-t-2 border-dashed">
-                              <Label className="text-sm font-bold mb-3 block flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                Accessories
-                              </Label>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {part.accessories.map((acc, accIndex) => (
-                                  <div key={accIndex} className="flex justify-between text-sm bg-muted/70 p-3 rounded-lg border hover:bg-muted transition-colors">
-                                    <span className="font-medium">{acc.name}</span>
-                                    <span className="font-bold">R {acc.price.toLocaleString()}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Totals */}
-                <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-2 border-primary/30 shadow-xl">
-                  <CardHeader className="bg-gradient-to-r from-primary/20 to-primary/10">
-                    <CardTitle className="text-xl font-bold">Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center text-base py-2">
-                        <span className="text-muted-foreground font-medium">Total Items</span>
-                        <span className="font-bold text-lg">{previewQuote.parts.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-base py-2">
-                        <span className="text-muted-foreground font-medium">Total Quantity</span>
-                        <span className="font-bold text-lg">
-                          {previewQuote.parts.reduce((sum, p) => sum + p.quantity, 0)}
-                        </span>
-                      </div>
-                      <Separator className="my-4" />
-                      <div className="flex justify-between items-center text-2xl font-bold pt-4 pb-2 px-4 bg-primary/20 rounded-lg border-2 border-primary/40">
-                        <span>Total Amount</span>
-                        <span className="text-primary">
-                          R {calculateQuoteTotal(previewQuote).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Workflow Status (if applicable) */}
-                {previewQuote.workflowStages && (
-                  <Card className="shadow-md border-2 hover:shadow-lg transition-shadow">
-                    <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100/50 dark:from-amber-950/20 dark:to-amber-900/10">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <div className="p-2 bg-amber-500 text-white rounded-lg">
-                          <CheckCircle className="h-5 w-5" />
-                        </div>
-                        Workflow Status
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {previewQuote.workflowStages.approveQuote && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                            <Badge variant={previewQuote.workflowStages.approveQuote.completed ? "default" : "secondary"} className="text-lg px-2">
-                              {previewQuote.workflowStages.approveQuote.completed ? "✓" : "○"}
-                            </Badge>
-                            <span className="text-sm font-medium">Approve Quote</span>
-                          </div>
-                        )}
-                        {previewQuote.workflowStages.preDeliveryJobCard && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                            <Badge variant={previewQuote.workflowStages.preDeliveryJobCard.completed ? "default" : "secondary"} className="text-lg px-2">
-                              {previewQuote.workflowStages.preDeliveryJobCard.completed ? "✓" : "○"}
-                            </Badge>
-                            <span className="text-sm font-medium">Pre-Delivery Job Card</span>
-                          </div>
-                        )}
-                        {previewQuote.workflowStages.applyForFinance && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                            <Badge variant={previewQuote.workflowStages.applyForFinance.completed ? "default" : "secondary"} className="text-lg px-2">
-                              {previewQuote.workflowStages.applyForFinance.completed ? "✓" : "○"}
-                            </Badge>
-                            <span className="text-sm font-medium">Apply for Finance</span>
-                          </div>
-                        )}
-                        {previewQuote.workflowStages.waitingForStock && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                            <Badge variant={previewQuote.workflowStages.waitingForStock.completed ? "default" : "secondary"} className="text-lg px-2">
-                              {previewQuote.workflowStages.waitingForStock.completed ? "✓" : "○"}
-                            </Badge>
-                            <span className="text-sm font-medium">Waiting for Stock</span>
-                          </div>
-                        )}
-                        {previewQuote.workflowStages.licenseAndReg && (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                            <Badge variant={previewQuote.workflowStages.licenseAndReg.completed ? "default" : "secondary"} className="text-lg px-2">
-                              {previewQuote.workflowStages.licenseAndReg.completed ? "✓" : "○"}
-                            </Badge>
-                            <span className="text-sm font-medium">License & Registration</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
+          <div className="h-full overflow-hidden rounded-md border border-border">
+            <iframe
+              title="Quote Preview"
+              srcDoc={previewHtml}
+              className="h-full w-full bg-white"
+            />
           </div>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
+

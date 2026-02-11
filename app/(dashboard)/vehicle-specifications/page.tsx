@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Search, Pencil, Eye } from "lucide-react"
-import AdditionalFeatures from "@/components/vehicle-specs/additional-features"
+import VehicleSpecForm, { defaultVehicleSpecFormData } from "@/components/vehicle-specs/spec-form"
 import { toast } from "@/hooks/use-toast"
 
 interface VehicleSpec {
@@ -34,6 +34,7 @@ export default function VehicleSpecsPage() {
   const [searchModel, setSearchModel] = useState("")
   const [vehicles, setVehicles] = useState<VehicleSpec[]>([])
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     fetchVehicles()
@@ -69,6 +70,39 @@ export default function VehicleSpecsPage() {
     s.make.toLowerCase().includes(searchMake.toLowerCase()) &&
     s.model.toLowerCase().includes(searchModel.toLowerCase())
   )
+
+  const handleCreate = async (payload: typeof defaultVehicleSpecFormData) => {
+    try {
+      setSubmitting(true)
+      const response = await fetch('/api/vehicle-specs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error?.error || 'Failed to create specification')
+      }
+
+      toast({
+        title: "Success",
+        description: "Vehicle specification created",
+      })
+      setActiveTab("view")
+      fetchVehicles()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create vehicle specification",
+        variant: "destructive"
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -152,9 +186,11 @@ export default function VehicleSpecsPage() {
                             <TableCell className="text-foreground">{s.model}</TableCell>
                             <TableCell className="text-foreground">{s.type}</TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/10">
+                              <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs hover:bg-primary/10">
+                                <Link href={`/vehicle-specifications/${s.mm_code}/edit`}>
                                 <Eye className="h-3.5 w-3.5 mr-1" />
-                                View Details
+                                Edit
+                                </Link>
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -178,9 +214,11 @@ export default function VehicleSpecsPage() {
                   <CardTitle className="text-lg font-medium text-foreground">Create M&M</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">Create form goes here (reuse the edit wizard). Below are additional features you can toggle on for this M&amp;M.</p>
-
-                  <AdditionalFeatures />
+                  <VehicleSpecForm
+                    submitLabel="Create Specification"
+                    loading={submitting}
+                    onSubmit={handleCreate}
+                  />
                 </CardContent>
               </Card>
             )}
